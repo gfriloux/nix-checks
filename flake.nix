@@ -55,6 +55,11 @@
           pkgs.runCommand "check-ansible" { } ''
             cd ${path}
             echo Running check ansible
+            set -euo pipefail
+            export HOME="$TMPDIR"
+            export ANSIBLE_LOCAL_TEMP="$TMPDIR/.ansible/tmp"
+            export ANSIBLE_REMOTE_TEMP="$TMPDIR/.ansible/remote_tmp"
+            mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP"
             ${pkgs.ansible-lint}/bin/ansible-lint --offline --profile production --exclude tests .
             mkdir "$out"
           '';
@@ -65,7 +70,7 @@
             nix = mkNixCheck;
             terraform = mkTerraformcheck;
             ansible = mkAnsiblecheck;
-            #statix = mkCheck "statix-check" "${pkgs.statix}/bin/statix check";
+            gitleaks = mkCheck "check-gitleaks" "${pkgs.gitleaks}/bin/gitleaks dir --no-banner --verbose --redact";
             #deadnix = mkCheck "deadnix-check" "${pkgs.deadnix}/bin/deadnix --fail";
           };
         };
