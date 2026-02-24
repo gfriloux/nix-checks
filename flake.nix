@@ -21,6 +21,7 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
+        pkgs-unfree = import nixpkgs { inherit system; config.allowUnfree = true; };
         mkCheck =
           name: code: path:
           pkgs.runCommand name { } ''
@@ -36,6 +37,17 @@
             echo Running check nix
             ${pkgs.deadnix}/bin/deadnix --fail
             ${pkgs.statix}/bin/statix check
+            ${pkgs.alejandra}/bin/alejandra --check .
+            mkdir "$out"
+          '';
+        mkTerraformcheck =
+          path:
+          pkgs.runCommand "check-terraform" { } ''
+            cd ${path}
+            ${pkgs-unfree.terraform}/bin/terraform fmt -diff -write=false -check -recursive
+            ${pkgs.tflint}/bin/tflint --recursive
+            ${pkgs.findutils}/bin/find . -type d | ${pkgs.findutils}/bin/xargs -I {} -t ${pkgs.tfsec}/bin/tfsec --exclude-downloaded-modules {}
+            echo Running check terraform
             mkdir "$out"
           '';
       in
@@ -43,6 +55,7 @@
         lib = {
           checks = {
             nix = mkNixCheck;
+            terraform = mkTerraformcheck;
             #statix = mkCheck "statix-check" "${pkgs.statix}/bin/statix check";
             #deadnix = mkCheck "deadnix-check" "${pkgs.deadnix}/bin/deadnix --fail";
           };
