@@ -44,10 +44,18 @@
           path:
           pkgs.runCommand "check-terraform" { } ''
             cd ${path}
+            echo Running check terraform
             ${pkgs-unfree.terraform}/bin/terraform fmt -diff -write=false -check -recursive
             ${pkgs.tflint}/bin/tflint --recursive
             ${pkgs.findutils}/bin/find . -type d | ${pkgs.findutils}/bin/xargs -I {} -t ${pkgs.tfsec}/bin/tfsec --exclude-downloaded-modules {}
-            echo Running check terraform
+            mkdir "$out"
+          '';
+        mkAnsiblecheck =
+          path:
+          pkgs.runCommand "check-ansible" { } ''
+            cd ${path}
+            echo Running check ansible
+            ${pkgs.ansible-lint}/bin/ansible-lint --offline --profile production --exclude tests .
             mkdir "$out"
           '';
       in
@@ -56,6 +64,7 @@
           checks = {
             nix = mkNixCheck;
             terraform = mkTerraformcheck;
+            ansible = mkAnsiblecheck;
             #statix = mkCheck "statix-check" "${pkgs.statix}/bin/statix check";
             #deadnix = mkCheck "deadnix-check" "${pkgs.deadnix}/bin/deadnix --fail";
           };
