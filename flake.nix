@@ -16,7 +16,6 @@
       self,
       nixpkgs,
       utils,
-      pre-commit-hooks,
       ...
     }:
     utils.lib.eachDefaultSystem (
@@ -65,76 +64,14 @@
             ${pkgs.ansible-lint}/bin/ansible-lint --offline --profile production --exclude tests .
             mkdir "$out"
           '';
-        mkTerraformShell = { path ? null }: pkgs.mkShell {
-          name = "terraform-shell";
-
-          buildInputs = with pkgs; [
-            pkgs-unfree.terraform
-            tflint
-            tfsec
-          ];
-
-          shellHook = ''
-            echo "[terraform-shell] Ready."
-            ${if path != null then "cd ${path}" else ""}
-          '';
-        };
-
-        preCommitFor = { src, enabledChecks ? [ "nix" ] }:
-          let
-            inherit (pkgs) lib;
-          in
-          pre-commit-hooks.lib.${system}.run {
-            inherit src;
-
-            hooks = lib.genAttrs enabledChecks (name:
-              {
-                enable = true;
-                name = "check-${name}";
-                entry = "${pkgs.nix}/bin/nix build .#checks.${system}.${name}";
-                language = "system";
-                pass_filenames = false;
-              }
-            );
-          };
-        mkFlakeIntegration = { src,	checks ? [ "nix" ] }:
-          let
-            generatedChecks =
-              builtins.listToAttrs (
-                map
-                  (name: {
-                  	name = name;
-                  	value = self.lib.${system}.checks.${name} src;
-                  })
-                  checks
-              );
-            preCommit = preCommitFor {
-              inherit src;
-              enabledChecks = checks;
-            };
-          in
-          {
-            checks = generatedChecks // {
-              pre-commit = preCommit;
-            };
-
-            devShell = pkgs.mkShell {
-              inherit (preCommit) shellHook;
-            };
-          };
       in
       {
         lib = {
-          inherit mkFlakeIntegration;
           checks = {
             nix = mkNixCheck;
             terraform = mkTerraformCheck;
             ansible = mkAnsibleCheck;
             gitleaks = mkCheck "check-gitleaks" "${pkgs.gitleaks}/bin/gitleaks dir --no-banner --verbose --redact";
-          };
-          
-          shells = {
-            terraform = mkTerraformShell;
           };
         };
       }
