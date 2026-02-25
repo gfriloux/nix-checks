@@ -16,6 +16,7 @@
       self,
       nixpkgs,
       utils,
+      pre-commit-hooks,
       ...
     }:
     utils.lib.eachDefaultSystem (
@@ -78,9 +79,53 @@
             ${if path != null then "cd ${path}" else ""}
           '';
         };
+
+        preCommitFor = { src, enabledChecks ? [ "nix" ] }:
+          let
+            inherit (pkgs) lib;
+          in
+          pre-commit-hooks.lib.${system}.run {
+            inherit src;
+
+            hooks = lib.genAttrs enabledChecks (name:
+              {
+                enable = true;
+                name = "check-${name}";
+                entry = "${pkgs.nix}/bin/nix build .#checks.${system}.${name}";
+                language = "system";
+                pass_filenames = false;
+              }
+            );
+          };
+        mkFlakeIntegration = { src,	checks ? [ "nix" ] }:
+          let
+            generatedChecks =
+              builtins.listToAttrs (
+                map
+                  (name: {
+                  	name = name;
+                  	value = self.lib.${system}.checks.${name} src;
+                  })
+                  checks
+              );
+            preCommit = preCommitFor {
+              inherit src;
+              enabledChecks = checks;
+            };
+          in
+          {
+            checks = generatedChecks // {
+              pre-commit = preCommit;
+            };
+
+            devShell = pkgs.mkShell {
+              inherit (preCommit) shellHook;
+            };
+          };
       in
       {
         lib = {
+          inherit mkFlakeIntegration;
           checks = {
             nix = mkNixCheck;
             terraform = mkTerraformCheck;
