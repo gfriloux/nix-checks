@@ -8,6 +8,7 @@
       url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
+    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
   };
 
   outputs =
@@ -40,7 +41,7 @@
             ${pkgs.alejandra}/bin/alejandra --check .
             mkdir "$out"
           '';
-        mkTerraformcheck =
+        mkTerraformCheck =
           path:
           pkgs.runCommand "check-terraform" { } ''
             cd ${path}
@@ -50,7 +51,7 @@
             ${pkgs.findutils}/bin/find . -type d | ${pkgs.findutils}/bin/xargs -I {} -t ${pkgs.tfsec}/bin/tfsec --exclude-downloaded-modules {}
             mkdir "$out"
           '';
-        mkAnsiblecheck =
+        mkAnsibleCheck =
           path:
           pkgs.runCommand "check-ansible" { } ''
             cd ${path}
@@ -63,15 +64,32 @@
             ${pkgs.ansible-lint}/bin/ansible-lint --offline --profile production --exclude tests .
             mkdir "$out"
           '';
+        mkTerraformShell = { path ? null }: pkgs.mkShell {
+          name = "terraform-shell";
+
+          buildInputs = with pkgs; [
+            pkgs-unfree.terraform
+            tflint
+            tfsec
+          ];
+
+          shellHook = ''
+            echo "[terraform-shell] Ready."
+            ${if path != null then "cd ${path}" else ""}
+          '';
+        };
       in
       {
         lib = {
           checks = {
             nix = mkNixCheck;
-            terraform = mkTerraformcheck;
-            ansible = mkAnsiblecheck;
+            terraform = mkTerraformCheck;
+            ansible = mkAnsibleCheck;
             gitleaks = mkCheck "check-gitleaks" "${pkgs.gitleaks}/bin/gitleaks dir --no-banner --verbose --redact";
-            #deadnix = mkCheck "deadnix-check" "${pkgs.deadnix}/bin/deadnix --fail";
+          };
+          
+          shells = {
+            terraform = mkTerraformShell;
           };
         };
       }
