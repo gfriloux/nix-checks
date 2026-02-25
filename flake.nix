@@ -8,7 +8,6 @@
       url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
-    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
   };
 
   outputs =
