@@ -57,7 +57,7 @@
             export ANSIBLE_LOCAL_TEMP="$TMPDIR/.ansible/tmp"
             export ANSIBLE_REMOTE_TEMP="$TMPDIR/.ansible/remote_tmp"
             mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP"
-            ${pkgs.ansible-lint}/bin/ansible-lint --offline --profile production --exclude tests .
+            ${pkgs.ansible-lint}/bin/ansible-lint --offline --profile production --exclude=tests .
             mkdir "$out"
           '';
         mkShellCheck = path:
