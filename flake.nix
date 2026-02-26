@@ -10,29 +10,28 @@
     };
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      utils,
-      ...
-    }:
+  outputs = {
+    self,
+    nixpkgs,
+    utils,
+    ...
+  }:
     utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        pkgs-unfree = import nixpkgs { inherit system; config.allowUnfree = true; };
-        mkCheck =
-          name: code: path:
-          pkgs.runCommand name { } ''
+      system: let
+        pkgs = import nixpkgs {inherit system;};
+        pkgs-unfree = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        };
+        mkCheck = name: code: path:
+          pkgs.runCommand name {} ''
             cd ${path}
             echo Running check ${name}
             ${code}
             mkdir "$out"
           '';
-        mkNixCheck =
-          path:
-          pkgs.runCommand "check-nix" { } ''
+        mkNixCheck = path:
+          pkgs.runCommand "check-nix" {} ''
             cd ${path}
             echo Running check nix
             ${pkgs.deadnix}/bin/deadnix --fail
@@ -40,9 +39,8 @@
             ${pkgs.alejandra}/bin/alejandra --check .
             mkdir "$out"
           '';
-        mkTerraformCheck =
-          path:
-          pkgs.runCommand "check-terraform" { } ''
+        mkTerraformCheck = path:
+          pkgs.runCommand "check-terraform" {} ''
             cd ${path}
             echo Running check terraform
             ${pkgs-unfree.terraform}/bin/terraform fmt -diff -write=false -check -recursive
@@ -50,9 +48,8 @@
             ${pkgs.findutils}/bin/find . -type d | ${pkgs.findutils}/bin/xargs -I {} -t ${pkgs.tfsec}/bin/tfsec --exclude-downloaded-modules {}
             mkdir "$out"
           '';
-        mkAnsibleCheck =
-          path:
-          pkgs.runCommand "check-ansible" { } ''
+        mkAnsibleCheck = path:
+          pkgs.runCommand "check-ansible" {} ''
             cd ${path}
             echo Running check ansible
             set -euo pipefail
@@ -63,14 +60,22 @@
             ${pkgs.ansible-lint}/bin/ansible-lint --offline --profile production --exclude tests .
             mkdir "$out"
           '';
-      in
-      {
+        mkShellCheck = path:
+          pkgs.runCommand "check-shell" {} ''
+            cd ${path}
+            echo Running check shell
+            ${pkgs.findutils}/bin/find . -name '*.sh' | ${pkgs.findutils}/bin/xargs -I {} -t ${pkgs.shellcheck}/bin/shellcheck {}
+            ${pkgs.shfmt}/bin/shfmt -d -s -i 2 -ci .
+            mkdir "$out"
+          '';
+      in {
         lib = {
           checks = {
             nix = mkNixCheck;
             terraform = mkTerraformCheck;
             ansible = mkAnsibleCheck;
             gitleaks = mkCheck "check-gitleaks" "${pkgs.gitleaks}/bin/gitleaks dir --no-banner --verbose --redact";
+            shell = mkShellCheck;
           };
         };
       }
