@@ -68,6 +68,13 @@
             ${pkgs.shfmt}/bin/shfmt -d -s -i 2 -ci .
             mkdir "$out"
           '';
+        mkMarkdownCheck = {path, args ? ""}:
+          pkgs.runCommand "check-shell" {} ''
+            cd ${path}
+            echo Running check markdown
+            ${pkgs.rumdl}/bin/rumdl check ${args} --exclude ".venv" .
+            mkdir "$out"
+          '';
       in {
         lib = {
           checks = {
@@ -76,6 +83,7 @@
             ansible = mkAnsibleCheck;
             gitleaks = mkCheck "check-gitleaks" "${pkgs.gitleaks}/bin/gitleaks dir --no-banner --verbose --redact";
             shell = mkShellCheck;
+            markdown = mkMarkdownCheck;
           };
         };
       }
